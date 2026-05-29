@@ -2,8 +2,9 @@ import streamlit as st
 
 from robocop import SITES, sql
 
-st.set_page_config(page_title="Data Browser", layout="wide")
-st.title("Data Browser & SQL")
+st.set_page_config(page_title="Data Browser", page_icon=":material/database:",
+                   layout="wide")
+st.title(":material/database: Data Browser & SQL")
 
 
 @st.cache_resource(show_spinner="Registering tables…")
@@ -21,7 +22,7 @@ if not views:
     st.stop()
 
 names = sorted(views)
-st.sidebar.write(f"**{len(names)}** tables")
+st.sidebar.metric("Tables", len(names))
 view = st.sidebar.radio("Tables", names)
 
 st.subheader(view)
@@ -31,13 +32,13 @@ with st.expander("Schema"):
 st.dataframe(sql.table_preview(con, view), use_container_width=True, height=320)
 
 st.divider()
-st.subheader("SQL")
+st.subheader(":material/terminal: SQL")
 st.caption("Available tables: " + ", ".join(names))
-query = st.text_area("Query", f"SELECT * FROM {view} LIMIT 100", height=140)
+query = st.text_area("SQL query", f"SELECT * FROM {view} LIMIT 100", height=140)
 if st.button("Run", type="primary") and query.strip():
     try:
         res = sql.run(con, query)
-        st.write(f"{len(res)} rows")
+        st.success(f"{len(res):,} rows")
         st.dataframe(res, use_container_width=True, height=420)
     except Exception as e:
         st.error(str(e))

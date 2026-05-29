@@ -2,8 +2,9 @@ import streamlit as st
 
 from robocop import SITES, sql
 
-st.set_page_config(page_title="Notes Viewer", layout="wide")
-st.title("Notes Viewer")
+st.set_page_config(page_title="Notes Viewer", page_icon=":material/description:",
+                   layout="wide")
+st.title(":material/description: Notes Viewer")
 
 
 @st.cache_resource
@@ -28,12 +29,14 @@ if not len(cat):
     st.warning("No notes found for this site.")
     st.stop()
 
-st.caption(f"{len(cat):,} notes (text not loaded)")
-
-c1, c2 = st.columns(2)
-id_filter = c1.text_input("Filter by note id contains")
 sources = sorted(cat["source_file"].dropna().unique())
-source = c2.selectbox("Source file", ["(all)"] + sources)
+c1, c2 = st.columns(2)
+c1.metric("Notes", f"{len(cat):,}", help="Text not loaded — fetched per note")
+c2.metric("Source files", len(sources))
+
+f1, f2 = st.columns(2)
+id_filter = f1.text_input("Filter by note id contains")
+source = f2.selectbox("Source file", ["(all)"] + sources)
 
 view = cat
 if id_filter:
@@ -52,4 +55,9 @@ if not ids:
 note_id = st.selectbox("Select a note", ids)
 if note_id:
     text = sql.get_note(get_con(), site, note_id)
-    st.text_area("Note text", text, height=480)
+    row = view[view["note_id"].astype(str) == note_id].iloc[0]
+    with st.container(border=True):
+        st.badge(f"id {note_id}", icon=":material/tag:")
+        st.badge(f"{int(row['note_len']):,} chars", icon=":material/format_size:")
+        st.badge(row["source_file"], icon=":material/draft:")
+        st.text_area("Note text", text, height=460, label_visibility="collapsed")

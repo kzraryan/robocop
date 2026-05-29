@@ -1,0 +1,5 @@
+# Minimal, fast theme — semantic color token only, system font (no web-font fetch).
+[theme]
+base = "light"
+primaryColor = "#0E7490"
+font = "sans serif"

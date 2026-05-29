@@ -1,32 +1,4 @@
-# Reference only — all of these are ALREADY installed in the server's conda env
-# `hackathon` (Python 3.11). Do NOT `pip install -r` on the server; it risks
-# disturbing the curated env. Use this list for local linting / awareness, or to
-# recreate a subset elsewhere.
-#
-# Core data
-pandas>=2.3
-polars>=1.40
-pyarrow>=22
-numpy>=1.26
 duckdb>=1.5
-openpyxl>=3.1
-# ML / explainability
-scikit-learn>=1.8
-xgboost>=3
-lightgbm>=4
-shap>=0.51
-# Notes / embeddings / retrieval
-sentence-transformers>=5
-faiss-cpu>=1.8        # server has `faiss` (GPU/CPU build) preinstalled
-rank-bm25
-spacy>=3.8
-nltk>=3.9
-# Local LLM
-ollama>=0.5
-langchain>=1.2
-langchain-ollama>=1.1
-# App / viz
 streamlit>=1.56
-plotly>=6
-matplotlib>=3.9
-seaborn>=0.13
+pandas>=2.3
+pyarrow>=22

@@ -1,11 +1,6 @@
-# =============================================================================
-# CAIDF DATA SAFETY — NEVER commit clinical data (de-identified but sensitive).
-# The data lives on the server at $CAIDF_DATA_ROOT (default /media/data/caidf_data)
-# and must stay there. These rules are a backstop in case anything is copied in.
-# =============================================================================
+# Never commit data files.
 data/
 Data/
-caidf_data/
 *.csv
 *.xlsx
 *.xls
@@ -17,15 +12,8 @@ caidf_data/
 *.pickle
 *.h5
 *.hdf5
-# Generated artifacts / indices that may embed note text
 artifacts/
 outputs/
-*.faiss
-*.index
-*.npy
-*.npz
-# Keep small committed example/lookup CSVs explicit-only via: git add -f path
-# =============================================================================
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

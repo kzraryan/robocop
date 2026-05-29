@@ -5,11 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "robocop"
 version = "0.1.0"
-description = "CAIDF Year 2 2026 Hackathon — NICU cohort toolkit"
+description = "NICU data tools"
 requires-python = ">=3.11"
-# Runtime deps are already present in the server's conda env `hackathon`.
-# See requirements.txt for the reference list; this keeps the package installable
-# with `pip install -e .` without forcing reinstalls.
 dependencies = []
 
 [tool.setuptools.packages.find]

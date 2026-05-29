@@ -1,0 +1,9 @@
+# Professional clinical theme for the NICU Clinical Workspace.
+# Calm medical teal on a light slate canvas; white surfaces for cards/sidebar.
+[theme]
+base = "light"
+primaryColor = "#0E7490"            # teal — buttons, accents, links
+backgroundColor = "#F8FAFC"         # app canvas (light slate)
+secondaryBackgroundColor = "#FFFFFF" # sidebar + widget surfaces
+textColor = "#0F172A"               # slate-900
+font = "sans serif"

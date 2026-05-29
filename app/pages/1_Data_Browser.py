@@ -4,7 +4,7 @@ from robocop import SITES, sql
 
 st.set_page_config(page_title="Data Browser", page_icon=":material/database:",
                    layout="wide")
-st.title(":material/database: Data Browser & SQL")
+st.title("Data Browser & SQL")
 
 
 @st.cache_resource(show_spinner="Registering tables…")
@@ -29,11 +29,13 @@ st.subheader(view)
 st.caption(views[view])
 with st.expander("Schema"):
     st.dataframe(sql.table_schema(con, view), use_container_width=True)
+st.caption("Preview · first 100 rows")
 st.dataframe(sql.table_preview(con, view), use_container_width=True, height=320)
 
 st.divider()
-st.subheader(":material/terminal: SQL")
-st.caption("Available tables: " + ", ".join(names))
+st.subheader("SQL")
+with st.expander("Tables you can query"):
+    st.write(", ".join(names))
 query = st.text_area("SQL query", f"SELECT * FROM {view} LIMIT 100", height=140)
 if st.button("Run", type="primary") and query.strip():
     try:

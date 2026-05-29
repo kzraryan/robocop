@@ -1,4 +1,6 @@
+import os
 import re
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -81,27 +83,79 @@ def note_columns(con: duckdb.DuckDBPyConnection, site: str) -> tuple[str, str]:
     return id_col, text_col
 
 
-def note_catalog(con: duckdb.DuckDBPyConnection, site: str) -> pd.DataFrame:
-    """Note ids + lengths + source file, without loading the text column."""
+def _cache_dir() -> Path:
+    d = Path(os.environ.get("ROBOCOP_CACHE", Path.home() / ".cache" / "robocop"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def notes_parquet(con: duckdb.DuckDBPyConnection, site: str) -> str:
+    """Path to a columnar (Parquet) copy of the site's notes (note_id, note).
+
+    Built once from the heavy CSVs, then reused — so counting, listing ids, and
+    fetching a single note are fast (columnar projection + filter, no repeated
+    full-CSV parse). Rebuilt automatically if the source files change (their
+    mtime is encoded in the filename).
+    """
     files = data.note_files(site)
-    id_col, text_col = note_columns(con, site)
-    id_expr = f'"{id_col}" AS note_id' if id_col else "row_number() OVER () AS note_id"
+    if not files:
+        raise FileNotFoundError(f"No note files found for site {site!r}.")
+    sig = int(max(p.stat().st_mtime for p in files))
+    out = _cache_dir() / f"{site}_notes_{sig}.parquet"
+    if not out.exists():
+        id_col, text_col = note_columns(con, site)
+        id_expr = f'"{id_col}"' if id_col else "CAST(row_number() OVER () AS VARCHAR)"
+        con.execute(
+            f'COPY (SELECT {id_expr} AS note_id, "{text_col}" AS note '
+            f"FROM read_csv_auto({_file_list(files)}, union_by_name=true, "
+            f"all_varchar=true)) TO '{out}' (FORMAT parquet)"
+        )
+    return str(out)
+
+
+def note_count(con: duckdb.DuckDBPyConnection, site: str) -> int:
+    """Total notes (Parquet row count — metadata only, instant)."""
     return con.execute(
-        f'SELECT {id_expr}, length("{text_col}") AS note_len, '
-        f"parse_filename(filename) AS source_file "
-        f"FROM read_csv_auto({_file_list(files)}, filename=true, "
-        f"union_by_name=true, all_varchar=true)"
+        f"SELECT count(*) FROM read_parquet('{notes_parquet(con, site)}')"
+    ).fetchone()[0]
+
+
+def note_id_at(con: duckdb.DuckDBPyConnection, site: str, index: int) -> str | None:
+    """The note id at a 0-based position (for browse/paging)."""
+    row = con.execute(
+        f"SELECT note_id FROM read_parquet('{notes_parquet(con, site)}') "
+        f"LIMIT 1 OFFSET {int(index)}"
+    ).fetchone()
+    return row[0] if row else None
+
+
+def search_note_ids(con: duckdb.DuckDBPyConnection, site: str, term: str,
+                    limit: int = 50) -> list[str]:
+    """Note ids matching a (partial) id string."""
+    rows = con.execute(
+        f"SELECT note_id FROM read_parquet('{notes_parquet(con, site)}') "
+        f"WHERE note_id ILIKE ? ORDER BY note_id LIMIT {int(limit)}",
+        [f"%{term}%"],
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def search_note_text(con: duckdb.DuckDBPyConnection, site: str, term: str,
+                     limit: int = 25) -> pd.DataFrame:
+    """Notes whose text contains ``term`` — id + a short snippet."""
+    return con.execute(
+        f"SELECT note_id, substr(note, 1, 200) AS snippet "
+        f"FROM read_parquet('{notes_parquet(con, site)}') "
+        f"WHERE note ILIKE ? LIMIT {int(limit)}",
+        [f"%{term}%"],
     ).df()
 
 
 def get_note(con: duckdb.DuckDBPyConnection, site: str, note_id: str) -> str:
-    files = data.note_files(site)
-    id_col, text_col = note_columns(con, site)
-    if not id_col:
-        raise ValueError("Notes have no id column to look up by.")
+    """Fetch a single note's text by id (Parquet point lookup)."""
     row = con.execute(
-        f'SELECT "{text_col}" FROM read_csv_auto({_file_list(files)}, '
-        f'union_by_name=true, all_varchar=true) WHERE "{id_col}" = ? LIMIT 1',
+        f"SELECT note FROM read_parquet('{notes_parquet(con, site)}') "
+        f"WHERE note_id = ? LIMIT 1",
         [str(note_id)],
     ).fetchone()
     return row[0] if row else ""

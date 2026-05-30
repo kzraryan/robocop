@@ -71,7 +71,7 @@ def main() -> None:
     inject_css()
 
     nav = st.navigation({
-        "Explore": [
+        "Patient Analytics": [
             st.Page(overview.render, title="Cohort Overview",
                     icon=":material/groups:", url_path="overview", default=True),
             st.Page(patient_timeline.render, title="Patient Timeline",

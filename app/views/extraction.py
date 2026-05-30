@@ -8,7 +8,7 @@ import streamlit as st
 
 import services
 from robocop import llm, nicu_vocab
-from ._ui import entity_html, need_con
+from ._ui import BORDER, CARD, entity_html, need_con
 
 
 def render():
@@ -39,7 +39,7 @@ def render():
         left, right = st.columns([3, 2])
         with left:
             st.markdown(
-                f"<div style='padding:1em;background:#fafafa;border:1px solid #eee;"
+                f"<div style='padding:1em;background:{CARD};border:1px solid {BORDER};"
                 f"border-radius:6px'>{entity_html(note, ents)}</div>",
                 unsafe_allow_html=True,
             )

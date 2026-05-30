@@ -1,7 +1,7 @@
 """Shared UI helpers: a global stylesheet, page headers, the sidebar brand &
 status panel, and small renderers (note highlighting, entity tagging).
 
-The look targets a warm, professional dark theme (see ``.streamlit/config.toml``)
+The look targets a warm, professional light theme (see ``.streamlit/config.toml``)
 with a Claude-style coral accent. Everything here is presentational; pages stay
 focused on data.
 """
@@ -13,13 +13,14 @@ import html
 import streamlit as st
 
 # ── palette (kept in sync with .streamlit/config.toml) ──────────────────────
-ACCENT = "#d97757"
-ACCENT_SOFT = "#e2a98f"
-BG = "#1a1916"
-CARD = "#24221d"
-BORDER = "#3a372f"
-TEXT = "#ece9e2"
-MUTED = "#9c978a"
+# Warm light theme: cream paper canvas, near-black ink, coral accent.
+ACCENT = "#d97757"          # coral accent (matches primaryColor)
+ACCENT_SOFT = "#a85636"     # darker coral — readable as small text on light bg
+BG = "#faf9f5"              # paper canvas (matches backgroundColor)
+CARD = "#f0eee6"            # cards / panels (matches secondaryBackgroundColor)
+BORDER = "#dcd8cc"          # hairline borders
+TEXT = "#28261d"            # warm near-black ink (matches textColor)
+MUTED = "#6b6757"           # muted label text, accessible on the paper canvas
 
 
 _CSS = f"""
@@ -64,9 +65,12 @@ h1, h2, h3 {{ letter-spacing: -0.01em; font-weight: 650; }}
 /* ---- sidebar: brand mark above the nav ---------------------------------- */
 [data-testid="stSidebar"] {{ border-right: 1px solid {BORDER}; }}
 [data-testid="stSidebarNav"]::before {{
-    content: "🤖  Robocop";
-    display: block; font-size: 1.15rem; font-weight: 700; color: {TEXT};
-    padding: 0.2rem 1rem 0.1rem; letter-spacing: -0.01em;
+    content: "R";
+    display: flex; align-items: center; justify-content: center;
+    width: 2.1rem; height: 2.1rem; margin: 0.2rem 1rem 0.1rem;
+    font-size: 1.2rem; font-weight: 800; color: #ffffff;
+    background: linear-gradient(135deg, {ACCENT}, {ACCENT_SOFT});
+    border-radius: 0.55rem; letter-spacing: 0;
 }}
 [data-testid="stSidebarNav"]::after {{
     content: "NICU Patient Intelligence";

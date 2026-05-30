@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import pickle
+import sys
 import urllib.request
 from pathlib import Path
 
@@ -59,8 +60,16 @@ def embed_texts(
     batch_size: int = 64,
     use_cache: bool = True,
     normalize: bool = True,
+    checkpoint_every: int = 20,
+    progress: bool | None = None,
 ) -> np.ndarray:
-    """Embed ``texts`` -> float32 array (n, dim). Caches by text hash."""
+    """Embed ``texts`` -> float32 array (n, dim). Caches by text hash.
+
+    The cache is flushed to disk every ``checkpoint_every`` batches, so a long
+    run that is interrupted resumes from where it stopped instead of starting
+    over. ``progress`` prints a running count to stderr (auto-enabled for large
+    workloads when not explicitly set).
+    """
     model = model or config.EMBED_MODEL
     host = host or config.OLLAMA_HOST
     cache = _load_cache(model) if use_cache else {}
@@ -75,11 +84,29 @@ def embed_texts(
             seen.add(k)
             unique_todo.append(t)
 
-    for i in range(0, len(unique_todo), batch_size):
+    total = len(unique_todo)
+    if progress is None:
+        progress = total > batch_size  # noisy only for real builds
+    n_batches = (total + batch_size - 1) // batch_size
+    for bi, i in enumerate(range(0, total, batch_size)):
         chunk = unique_todo[i : i + batch_size]
         vecs = _embed_batch(chunk, model, host)
         for t, v in zip(chunk, vecs):
             cache[_key(t)] = v
+        # Periodic checkpoint so an interrupted run is resumable.
+        if use_cache and checkpoint_every and (bi + 1) % checkpoint_every == 0:
+            _save_cache(model, cache)
+        if progress:
+            done = min(i + batch_size, total)
+            print(
+                f"\r  embedded {done}/{total} new chunks "
+                f"(batch {bi + 1}/{n_batches})",
+                end="",
+                file=sys.stderr,
+                flush=True,
+            )
+    if progress and total:
+        print("", file=sys.stderr)
     if use_cache and unique_todo:
         _save_cache(model, cache)
 

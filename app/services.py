@@ -26,6 +26,26 @@ def get_con():
     return ingest.connect(config.DUCKDB_PATH, read_only=True)
 
 
+@st.cache_data(show_spinner=False)
+def patients_with_notes() -> list[str]:
+    """PATIDs that actually have at least one note, ordered by note volume.
+
+    Note pages should offer only these — most infants have no notes (notes are
+    built for a focused cohort), so listing every patient is misleading."""
+    con = get_con()
+    if con is None:
+        return []
+    try:
+        rows = con.execute(
+            "SELECT PATID FROM mu_nicu.NOTE "
+            "WHERE NOTE_TEXT IS NOT NULL AND PATID IS NOT NULL "
+            "GROUP BY PATID ORDER BY count(*) DESC, PATID"
+        ).fetchall()
+        return [r[0] for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 @st.cache_resource(show_spinner="Loading note index…")
 def get_index():
     try:

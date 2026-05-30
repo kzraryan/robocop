@@ -17,19 +17,28 @@ def render():
     con = services.get_con()
     if not need_con(con):
         return
-    fb = services.get_features()
 
-    patid = st.selectbox("Infant", list(fb.features.index))
+    pats = services.patients_with_notes()
+    if not pats:
+        st.info("No notes available. Build the note data with "
+                "`python scripts/build_index.py`.")
+        return
+    patid = st.selectbox("Infant", pats, key="ext_patid")
     notes = con.execute(
         "SELECT NOTEID, NOTE_DATE, PROVIDER_TYPE, NOTE_TEXT FROM mu_nicu.NOTE "
-        "WHERE PATID = ? ORDER BY NOTE_DATE", [patid],
+        "WHERE PATID = ? AND NOTE_TEXT IS NOT NULL ORDER BY NOTE_DATE", [patid],
     ).fetchdf()
     if notes.empty:
         st.info("No notes for this infant.")
         return
+    # Per-infant, per-row key so changing the dropdown actually re-renders, and a
+    # label with a row index so notes sharing a date/provider stay distinguishable.
     nrow = st.selectbox(
-        "Note", range(len(notes)),
-        format_func=lambda i: f"{notes.iloc[i]['NOTE_DATE']} · {notes.iloc[i]['PROVIDER_TYPE']}",
+        "Note", range(len(notes)), key=f"ext_note_{patid}",
+        format_func=lambda i: (
+            f"{i + 1}. {notes.iloc[i]['NOTE_DATE']} · "
+            f"{notes.iloc[i]['PROVIDER_TYPE']} · {notes.iloc[i]['NOTEID']}"
+        ),
     )
     note = notes.iloc[nrow]["NOTE_TEXT"]
 

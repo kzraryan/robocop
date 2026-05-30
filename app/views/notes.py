@@ -31,13 +31,12 @@ def render():
             "(needs Ollama) to build embeddings."
         )
         return
-    fb = services.get_features()
 
     query = st.text_input(
         "Search", placeholder="e.g. feeding intolerance with abdominal distension",
     )
     c1, c2, c3 = st.columns([2, 2, 1])
-    pats = ["(any)"] + (list(fb.features.index) if fb is not None else [])
+    pats = ["(any)"] + services.patients_with_notes()
     patid_sel = c1.selectbox("Infant", pats)
     providers = c2.multiselect("Provider", ["MD", "RN", "OT", "PT", "SLP"])
     topk = c3.number_input("Top K", 5, 100, 20, 5)

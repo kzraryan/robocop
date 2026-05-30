@@ -25,14 +25,13 @@ def render():
     if not services.chat_models():
         st.error("No Ollama chat model available.")
         return
-    fb = services.get_features()
 
     question = st.text_input(
         "Question",
         value="Which infants had a sepsis work-up and what was started empirically?",
     )
     c1, c2, c3 = st.columns([2, 2, 1])
-    pats = ["(any)"] + (list(fb.features.index) if fb is not None else [])
+    pats = ["(any)"] + services.patients_with_notes()
     patid_sel = c1.selectbox("Scope to infant", pats)
     model = c2.selectbox("Chat model", services.chat_models(),
                          index=_default_idx(services.chat_models(), services.default_chat()))

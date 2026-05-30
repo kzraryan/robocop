@@ -92,7 +92,7 @@ def _cohort_timeline(con, patid, neighbors) -> None:
     rows = []
     for pid in ids:
         ev = timeline.patient_events(con, pid)
-        ylabel = f"★ {pid} (index)" if pid == patid else pid
+        ylabel = f"★ {pid} (index)" if pid == patid else f"Patient {pid}"
         for r in ev.itertuples(index=False):
             rows.append({
                 "infant": ylabel,
@@ -110,7 +110,9 @@ def _cohort_timeline(con, patid, neighbors) -> None:
 
     tdf = pd.DataFrame(rows)
     # Index infant on top; matches below in similarity order.
-    y_order = list(reversed([f"★ {patid} (index)"] + [n.patid for n in neighbors]))
+    y_order = list(reversed(
+        [f"★ {patid} (index)"] + [f"Patient {n.patid}" for n in neighbors]
+    ))
     # Stable, readable-on-light colors per event category.
     color_map = {
         "Diagnosis": "#c0392b", "Condition": "#8e44ad", "Medication": "#27ae60",
@@ -140,7 +142,10 @@ def _cohort_timeline(con, patid, neighbors) -> None:
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         )
         fig.update_xaxes(gridcolor="#e6e2d8", zeroline=False)
-        fig.update_yaxes(gridcolor="#e6e2d8")
+        # Force a categorical y-axis: numeric-looking PATIDs would otherwise be
+        # read as numbers and shown with SI suffixes (e.g. '2M' for 2000123).
+        fig.update_yaxes(gridcolor="#e6e2d8", type="category",
+                         categoryorder="array", categoryarray=y_order)
         st.plotly_chart(fig, width="stretch")
     except Exception:  # noqa: BLE001
         st.dataframe(tdf, hide_index=True, width="stretch")

@@ -1,0 +1,10 @@
+# Robocop runtime deps. Versions match the hackathon conda env ("hackathon");
+# loosen/pin as needed. The LLM + embedding calls use the stdlib (urllib) against
+# the local Ollama HTTP API, so no provider SDK is required.
+streamlit>=1.56
+duckdb>=1.5
+pandas>=2.2
+numpy>=1.26
+pyarrow>=17
+faiss-cpu>=1.8        # the hackathon box has GPU faiss; faiss-cpu works anywhere
+plotly>=6.0

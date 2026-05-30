@@ -1,0 +1,180 @@
+﻿File Name: CONDITION.csv
+Description: Condition text and clinical codes documented for the patient. Used to establish clinical baselines and calculate patient similarity confidence scores.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Primary Foreign Key used to aggregate conditions per infant.
+CONDITIONID; Unique Identifier for the specific condition instance; Primary Key for this table. Useful for tracking recurring acute events.
+RAW_CONDITION_NAME; Exact text entered by the clinician; High Value for NLP. Crucial for matching free-text physician prompts. Prone to typos/variations.
+CONDITION; Numerical Clinical Code; High Value for Similarity. Excellent for exact semantic and deterministic matching.
+CONDITION_TYPE; Coding System Standard used (e.g., SNOMED = 'SM ', ICD-10 = '10'); Essential context for the model to interpret the CONDITION number correctly.
+REPORT_DATE; The date the condition was recorded in the EHR; Crucial for NICU. Timeline matters; early-onset vs. late-onset conditions change patient similarity drastically.
+
+
+
+
+File Name: DEMOGRAPHIC.csv
+Description: Baseline demographic and birth metrics for the patient. Crucial for establishing the foundational cohort baseline in patient similarity algorithms.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Primary Key for this table. Used to join demographic baselines to clinical event files (Conditions, Diagnoses).
+RACE; The recorded race of the patient; Numerical value. Useful for epidemiological matching or analyzing population-specific baseline risks.
+SEX; Biological sex of the infant (e.g., 'M', 'F', 'U'); High Value for Similarity. Highly critical in NICU data as certain conditions (e.g., RDS, NEC) and growth curves have sex-specific baselines.
+BIRTH_DATE; The calendar date and time of birth; Primary timestamp. Essential for calculating chronological age, days of life (DOL), or aligning timelines across other event files.
+GESTATIONAL_AGE; The gestational age at birth, typically in weeks or total days (e.g., 275); Highest Value for Similarity. The single most critical anchoring metric for any NICU similarity model.
+
+
+
+
+File Name: DIAGNOSIS.csv
+Description: Official clinical diagnoses associated with a specific patient encounter. Primary data source for deterministic patient matching and identifying primary reasons for NICU admission.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Primary Foreign Key to group diagnoses per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay or visit; Critical for NICU. Allows the model to isolate diagnoses to a specific admission or epoch of care.
+DIAGNOSISID; Unique identifier for the specific diagnosis instance; Primary Key for this table.
+RAW_DIAGNOSIS_NAME; Exact text entered by the clinician; High Value for NLP. Crucial for matching free-text physician prompts (e.g., "PFO", "Gastroschisis"). Prone to synonyms.
+DX_DATE; The date the diagnosis was officially entered; Critical for timeline analysis. Used to calculate the infant's gestational age or days-of-life at time of diagnosis.
+DX; Alpha-numeric clinical code representing the diagnosis; High Value for Similarity. Standardized code (usually ICD-10-CM) ideal for exact, high-confidence SQL matching.
+DX_TYPE; Coding system standard used (e.g. '10' for ICD-10); Essential context. Dictates how the model should interpret the format of the 'DX' column.
+
+
+
+
+File Name: LAB_RESULT_CM.csv
+Description: Quantitative and qualitative laboratory test results. Critical for micro-level patient similarity matching, tracking clinical acuity, and monitoring metabolic/physiological trajectories.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key to aggregate lab history per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Vital for isolating labs to a specific NICU admission or chronological epoch.
+LAB_RESULT_CM_ID; Unique identifier for the specific lab result instance; Primary Key for this table.
+LAB_LOINC; Standardized Logical Observation Identifiers Names and Codes (LOINC) mapping; Highest Value for Logic. Universal standard for lab tests. The model should prioritize LOINC codes over raw text for deterministic SQL queries.
+SPECIMEN_SOURCE; The biological source of the sample (e.g., 'Blood', 'Urine', 'CSF'); Crucial Context. Vital for distinguishing between different test profiles (e.g., blood culture vs. urine culture).
+RAW_LAB_NAME; The local laboratory test name as entered in the hospital system; High Value for NLP. Maps messy physician prompts (e.g., "bili", "crp", "cbc") to the data.
+RESULT_UNIT; The unit of measurement for the result (e.g., 'mg/dL', 'mmol/L'); Essential Context. WARNING: Contains nulls ('/n' or '//n'). SQL queries must check for non-null units when validating quantitative thresholds.
+RESULT_NUM; The quantitative, numerical value of the test result; Highest Value for Acuity. WARNING: Contains nulls ('/n' or '//n') for qualitative tests or errors. Model must use 'WHERE RESULT_NUM IS NOT NULL' for math calculations.
+SPECIMEN_DATE; The date (and ideally time) the sample was collected; Critical for Timeline. Used alongside BIRTH_DATE to track age-dependent lab trends (e.g., normal bilirubin spikes on Day 3 of life).
+
+
+
+
+File Name: PRESCRIBING.csv
+Description: Medication prescription records. Vital for therapeutic similarity tracking, identifying treatment regimens, and serving as a proxy for clinical severity.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key to aggregate medication history per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Vital for isolating medications to a specific admission or epoch of care.
+PRESCRIBINGID; Unique identifier for the specific prescription instance; Primary Key for this table.
+RAW_RX_MED_NAME; Exact medication name entered by the clinician; High Value for NLP. Crucial for matching free-text physician prompts (e.g., "gentamicin", "caffeine", "ampicillin"). Prone to brand/generic variations.
+RX_START_DATE; The date the medication was ordered/started; Critical for Timeline. Used to determine the exact infant age (Days of Life) when a therapeutic intervention began.
+RX_END_DATE; The date the medication was stopped or set to expire; Critical for Duration. Allows the model to calculate total exposure days (e.g., length of an antibiotic course).
+RX_ROUTE; The administration route (e.g., 'Intravenous', 'Oral', 'UN', 'NI', 'OT'); High Value for Context. Standard routes are fully written out (great for NLP), but contain placeholder codes like 'UN' (Unknown), 'NI' (No Information), and 'OT' (Other) that the model should treat as missing or unclassified data.
+RX_DOSE_ORDERED; The numerical amount of the dose ordered; Numeric Value. Useful for tracking dosing shifts, but note that NICU doses are weight-dependent.
+RX_DOSE_ORDERED_UNIT; The unit of measurement for the dose (e.g., 'mg', 'mcg'); Essential Context. Pairs with RX_DOSE_ORDERED to prevent mathematical misalignment.
+RX_QUANTITY; The total amount or volume of medication dispensed; Quantitative Value. Less critical for immediate clinical similarity, but indicates total volume.
+RX_REFILLS; The number of refills authorized; WARNING: Mostly null ('//N'). Safe to ignore or exclude from active SQL-mapping schemas for inpatient NICU cohorts, as refills are rare in hospital stays.
+RX_FREQUENCY; Codes representing how often the dose is given (e.g., 'NI', 'OR'); WARNING: Uses coded abbreviations. The model should map these to standard intervals (e.g., Q12H, PRN) to evaluate treatment intensity.
+ACTIVE_MEDICATION; Flag indicating if the medication is currently active (e.g., 'Y', 'N'); Status Indicator. Essential for queries asking for "infants *currently* on" a specific treatment versus historical exposure.
+
+
+
+
+File Name: PROCEDURES.csv
+Description: Clinical, surgical, and diagnostic procedures performed on the patient during their hospital stay. High-yield data for mapping critical therapeutic interventions and surgical acuity.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key to aggregate all procedures performed on a specific infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical for Context. Connects the procedure directly to a specific admission or epoch of care.
+PROCEDURESID; Unique identifier for the specific procedure instance; Primary Key for this table.
+RAW_PROCEDURE_NAME; The exact text description of the procedure performed; Highest Value for NLP. Crucial for matching free-text physician prompts (e.g., "intubation", "PICC line", "ECMO", "laser surgery"). Prone to varied phrasing and shorthand.
+
+
+
+
+File Name: VITAL.csv
+Description: Longitudinal vital signs and physical growth measurements. Critical for tracking hemodynamic stability and growth velocity trajectories in infants.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key to aggregate physiological tracking history per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical for anchoring vitals to a specific NICU admission timeline.
+VITALID; Unique identifier for the specific vitals logging instance; Primary Key for this table.
+MEASURE_DATE; The exact date and time the measurements were recorded; Critical for Timeline. Essential for calculating growth charts or identifying precise moments of acute hemodynamic shifts.
+SYSTOLIC; The systolic blood pressure reading (mmHg); High Value for Acuity. Crucial metric for identifying neonatal hypertension or hypotension/shock thresholds.
+DIASTOLIC; The diastolic blood pressure reading (mmHg); High Value for Acuity. Complements systolic data to calculate mean arterial pressure (MAP), a vital NICU metric.
+HT; The recorded length/height of the infant; Growth Metric. Typically measured weekly in the NICU to track linear skeletal growth trajectories.
+WT; The recorded weight of the infant; Highest Value for Progress. Critical in neonatology. Daily weight trends guide nutrition, drug dosing, and fluid balance calculations.
+
+
+
+
+File Name: OBS_CLIN_NICU_ENTERAL_GI.csv
+Description: Observations and flowsheet tracking logs for enteral feeding, gastrointestinal (GI) tube management, and digestive system checks. Critical for tracking nutritional pathways and feeding tolerance trajectories.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key used to aggregate nutritional and GI histories per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical for anchoring GI/feeding events to a specific NICU admission.
+OBSCLINID; Unique identifier for the specific observation instance; Primary Key for this table.
+OBSCLIN_CODE; Standardized internal or clinical code representing the specific GI observation type; Useful for deterministic grouping if raw names vary.
+OBSCLIN_START_DATE; The date and time the GI observation was logged; Critical for Timeline. High-precision timestamp needed to track the progression of feeding volumes or frequency of GI checks.
+RAW_OBSCLIN_NAME; The exact name of the GI parameter or device being tracked; Highest Value for NLP. Crucial for identifying specific events (e.g., 'Gastric Residuals', 'Abdominal Girth', 'Tube Placement Check', 'Feeding Type').
+TUBE_NAME; The specific type of enteral tube used; High Value for Device Context. Distinguishes between device types (e.g., 'Nasogastric / NG Tube', 'Orogastric / OG Tube', 'G-Tube') which impact care profiles.
+OBSCLIN_RESULT; The categorical status, action, or milestone logged (e.g., 'Routine Checks', 'Tube Inserted', 'Verified'); Highest Value for Logic. Represents workflow status. Perfect for finding when an enteral feeding pathway began or how heavily it is being monitored.
+RAW_OBSCLIN_RESULT; The raw text matching the result; High Value for Context. Backup field for catching specific clinical notes or unmapped entries.
+OBSCLIN_RESULT_UNIT; The unit of measurement; Safe to Ignore. As this table tracks categorical workflow events and status logs rather than numeric data, this column is safely ignored ('/N').
+
+
+
+
+File Name: OBS_CLIN_NICU_PAIN_SCORES.csv
+Description: Standardized neonatal pain assessment scores and comfort monitoring logs. Critical for measuring clinical stress, post-operative care intensity, and neurological comfort levels.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key used to aggregate pain assessment histories per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical for anchoring pain monitoring to a specific NICU admission.
+OBSCLINID; Unique identifier for the specific observation instance; Primary Key for this table. Can be used as a proxy for sequence order if multiple logs occur on the same date.
+OBSCLIN_CODE; Standardized internal or clinical code representing the specific pain scale type; Useful for deterministic grouping across different hospital documentation templates.
+OBSCLIN_START_DATE; The calendar date the pain score was recorded; Critical for Timeline. WARNING: Date only, no time component. Multiple assessments on the same day will share this timestamp.
+RAW_OBSCLIN_NAME; The specific pain scale framework used (e.g., 'NIPS Score Total', 'FLACC Score', 'PIPP'); Highest Value for NLP. Tells the model exactly which validation scale is being quantified.
+OBSCLIN_RESULT; The numerical score calculated from the assessment scale; Highest Value for Math. Numeric field used to calculate thresholds (e.g., NIPS > 4 indicates severe pain/stress requiring intervention).
+OBSCLIN_RESULT_UNIT; The unit of measurement; Safe to Ignore. Mostly null ('/N'). Pain scales are raw composite integer scores and do not possess physical units.
+
+
+
+
+File Name: OBS_CLIN_NICU_VENT.csv
+Description: Flowsheet tracking logs for ventilation and respiratory support interventions. Primarily documents equipment statuses, procedure initiation milestones, and routine respiratory therapy actions. Critical for micro-level respiratory severity and trajectory matching.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key to aggregate respiratory intervention timelines per infant.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical for anchoring ventilation events to a specific NICU admission.
+OBSCLINID; Unique identifier for the specific observation instance; Primary Key for this table.
+OBSCLIN_START_DATE; The date and time the ventilation event was logged; Critical for Timeline. Used to calculate duration of therapy (e.g., time between 'Initiated' and discontinuation) or time-to-intervention.
+RAW_OBSCLIN_NAME; The specific respiratory device, mode, or protocol being tracked; Highest Value for NLP. Crucial for identifying the device type (e.g., 'CPAP', 'Mechanical Ventilator', 'High Flow Nasal Cannula').
+OBSCLIN_RESULT; The categorical status or action logged (e.g., 'Routine Check', 'Changed Out', 'Initiated'); Highest Value for Logic. Represents workflow status. Perfect for finding when a therapy began or how heavily it was maintained.
+RAW_OBSCLIN_RESULT; The raw text matching the result; High Value for Context. Backup field for exact text verification.
+OBSCLIN_RESULT_UNIT; The unit of measurement; Safe to Ignore. As this table tracks categorical workflow events and status logs rather than numeric data, this column is safely ignored ('/N').
+
+
+
+
+File Name: ENCOUNTER.csv
+Description: Hospital admission and billing encounter records, including administrative metrics and Diagnosis-Related Group (DRG) classifications. Crucial for calculating length of stay and macro-level acuity.
+
+
+Column Name; Brief Description; Model Notes
+PATID; Unique Patient Identifier; Critical. Foreign Key used to map administrative encounter timelines to specific infants.
+ENC_TYPE; The type of medical encounter (e.g., 'IP' for Inpatient, 'ED' for Emergency Department); High Value for Filtering. For NICU cohorts, the model should typically filter for Inpatient ('IP') encounters.
+ENCOUNTERID; Unique identifier for the specific hospital stay; Critical Primary Key. The central anchor used to join diagnoses, labs, and medications to a specific admission event.
+ADMIT_DATE; The calendar date the patient was admitted to the unit; Critical for Timeline. Used as the anchor date to align all clinical events to the start of the stay.
+DISCHARGE_DATE; The calendar date the patient was discharged or transferred; Critical for Duration. Combined with ADMIT_DATE to calculate the Total Length of Stay (LOS), a massive proxy for overall complexity.
+DRG; Diagnosis-Related Group billing code (e.g., '790' for extreme immaturity); Highest Value for Cohorts. Universal billing codes are heavily tied to birth weight and severity. Excellent for deterministic macro-similarity matching.
+DRG_TYPE; The standard version of the DRG system used (e.g., 'MS', 'APR'); Essential Context. Tells the model how to interpret the DRG code format (e.g., MS-DRG vs. APR-DRG).

@@ -44,9 +44,11 @@ def main() -> int:
     ap.add_argument("--cohort-patients", type=int, default=None,
                     help="Embed the full note history of this many patients "
                          "(each with >= --min-notes notes). Overrides --max-notes.")
-    ap.add_argument("--min-notes", type=int, default=50,
+    ap.add_argument("--min-notes", type=int, default=1,
                     help="Min notes a patient must have to join the cohort "
-                         "(used with --cohort-patients).")
+                         "(used with --cohort-patients). Default 1 keeps even "
+                         "patients with very few notes; raise it to focus on "
+                         "patients with rich histories.")
     args = ap.parse_args()
 
     config.ensure_dirs()
@@ -120,6 +122,11 @@ def _select_cohort_notes(con, n_patients: int, min_notes: int):
 
     patids = chosen["PATID"].tolist()
     total_notes = int(chosen["n"].sum())
+    if len(patids) < n_patients:
+        print(
+            f"     note: only {len(patids)} patients have >= {min_notes} notes "
+            f"(you asked for {n_patients}); embedding all {len(patids)}."
+        )
     print(
         f"     cohort: {len(patids)} patients with >= {min_notes} notes "
         f"({total_notes} notes total; "

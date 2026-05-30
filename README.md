@@ -95,12 +95,20 @@ python scripts/build_index.py --max-notes 2000  # + embeddings/FAISS (random not
 # Preferred for a demo: full note history of a focused cohort, so timelines and
 # the similarity note-blend have continuity (richest histories chosen first).
 python scripts/build_index.py --cohort-patients 100 --min-notes 50
+
+# Just want a few patients with however many notes they have? Use a small cohort
+# and the default --min-notes 1 (keeps patients even with only a handful of notes).
+python scripts/build_index.py --cohort-patients 5
 streamlit run app/streamlit_app.py
 ```
 
 `--cohort-patients N --min-notes M` keeps the N patients who each have at least
 M notes (ranked by note count) and embeds **all** of their notes — a lifetime
-record per infant — instead of `--max-notes`' scattered random rows.
+record per infant — instead of `--max-notes`' scattered random rows. `--min-notes`
+defaults to **1**, so a small `--cohort-patients` value just embeds a few patients
+with whatever notes they have; raise `--min-notes` to focus on rich histories. If
+fewer patients meet the bar than you asked for, the script embeds all that qualify
+and tells you so.
 
 If `inspect_data.py` shows a misdetected note column, set the matching override
 (e.g. `ROBOCOP_NOTE_PROVIDER_COL`, `ROBOCOP_NOTE_DATE_COL`) and rebuild.

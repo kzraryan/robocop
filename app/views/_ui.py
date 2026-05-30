@@ -109,6 +109,17 @@ small, .stMarkdown small {{
 .stButton button, .stDownloadButton button {{ font-weight: 600; border-radius: 0.55rem; }}
 [data-testid="stDataFrame"] {{ border-radius: 0.6rem; overflow: hidden; }}
 
+/* ---- version marker pinned to the sidebar's bottom-left ----------------- */
+[data-testid="stSidebar"] > div:first-child {{ padding-bottom: 2.4rem; }}
+.rc-version {{
+    position: fixed; left: 0; bottom: 0; z-index: 100;
+    width: var(--sidebar-width, 244px);
+    padding: 0.4rem 1rem;
+    font-family: ui-monospace, monospace; font-size: 0.72rem;
+    color: {MUTED}; background: {CARD}; border-top: 1px solid {BORDER};
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}}
+
 /* ---- callout used for unavailable / heads-up states --------------------- */
 .rc-note {{
     background: {CARD}; border: 1px solid {BORDER}; border-left: 3px solid {ACCENT};

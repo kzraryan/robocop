@@ -66,6 +66,14 @@ def _sidebar_status() -> None:
         unsafe_allow_html=True,
     )
 
+    # Version marker (bottom-left): the short git hash should match the latest
+    # commit on your branch — if not, the app is on stale code (pull + restart).
+    from robocop.version import version_label  # noqa: E402
+    st.sidebar.markdown(
+        f"<div class='rc-version'>{version_label()}</div>",
+        unsafe_allow_html=True,
+    )
+
 
 def main() -> None:
     inject_css()

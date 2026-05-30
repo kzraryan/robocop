@@ -42,9 +42,9 @@ def render():
         fig.update_layout(height=380, showlegend=False,
                           margin=dict(l=10, r=10, t=10, b=10),
                           xaxis_title="Day of life")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     except Exception:  # noqa: BLE001 - plotly optional
-        st.dataframe(events, hide_index=True, use_container_width=True)
+        st.dataframe(events, hide_index=True, width="stretch")
 
     st.subheader("Weight trajectory")
     wc = timeline.weight_curve(con, patid)
@@ -57,7 +57,7 @@ def render():
         default=list(events["category"].cat.categories),
     )
     view = events[events["category"].isin(cats)][["dol", "date", "category", "label", "detail"]]
-    st.dataframe(view, hide_index=True, use_container_width=True, height=420)
+    st.dataframe(view, hide_index=True, width="stretch", height=420)
 
 
 def _select_patient(fb) -> str:

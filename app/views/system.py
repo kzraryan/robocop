@@ -37,7 +37,7 @@ def render():
         st.dataframe(
             pd.DataFrame({"model": models,
                           "kind": ["embedding" if m in emb else "chat/coder" for m in models]}),
-            hide_index=True, use_container_width=True, height=360,
+            hide_index=True, width="stretch", height=360,
         )
     else:
         st.warning(f"No models reachable at {config.OLLAMA_HOST}. "
@@ -53,4 +53,4 @@ def render():
                 rows.append({"table": t, "rows": n})
             except Exception:  # noqa: BLE001
                 pass
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")

@@ -33,7 +33,7 @@ def render():
         )
         c1, c2 = st.columns(2)
         model = services.default_chat()
-        if c1.button("✨ Generate SQL", use_container_width=True, disabled=not prompt):
+        if c1.button("✨ Generate SQL", width="stretch", disabled=not prompt):
             try:
                 with st.spinner(f"Asking {model}…"):
                     st.session_state["q_sql"] = text2sql.generate_sql(prompt, model=model)
@@ -42,7 +42,7 @@ def render():
 
         st.text_area("SQL (editable)", height=170, key="q_sql")
         sql = st.session_state["q_sql"]
-        if c2.button("▶ Run", use_container_width=True, disabled=not sql):
+        if c2.button("▶ Run", width="stretch", disabled=not sql):
             _run(con, sql, allow_patid_handoff=True)
 
     with tab_console:
@@ -51,7 +51,7 @@ def render():
         with st.expander("Tables"):
             tbls = con.execute("SELECT table_name FROM information_schema.tables "
                                "WHERE table_schema='mu_nicu' ORDER BY 1").fetchdf()
-            st.dataframe(tbls, hide_index=True, use_container_width=True)
+            st.dataframe(tbls, hide_index=True, width="stretch")
         sql2 = st.text_area(
             "SQL", height=140,
             value="SELECT DRG, COUNT(*) n FROM ENCOUNTER GROUP BY DRG ORDER BY n DESC",
@@ -67,7 +67,7 @@ def _run(con, sql, allow_patid_handoff=False):
         dt = (time.time() - t0) * 1000
         st.success(f"{res.row_count} row(s) in {dt:.0f} ms")
         st.code(res.sql, language="sql")
-        st.dataframe(res.df, use_container_width=True, height=360)
+        st.dataframe(res.df, width="stretch", height=360)
         st.download_button("Download CSV", res.df.to_csv(index=False).encode(),
                            file_name="robocop_query.csv")
         if allow_patid_handoff and "PATID" in res.df.columns:

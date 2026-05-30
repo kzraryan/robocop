@@ -46,7 +46,7 @@ def render():
         with right:
             st.dataframe(
                 pd.DataFrame(ents)[["mention", "canonical"]] if ents else pd.DataFrame(),
-                hide_index=True, use_container_width=True, height=380,
+                hide_index=True, width="stretch", height=380,
             )
 
     with tab_llm:
@@ -60,7 +60,7 @@ def render():
                     parsed = llm.extract_entities_llm(note, model=model)
                     if parsed:
                         st.dataframe(pd.DataFrame(parsed), hide_index=True,
-                                     use_container_width=True)
+                                     width="stretch")
                     else:
                         st.warning("Could not parse structured output.")
                 except Exception as e:  # noqa: BLE001

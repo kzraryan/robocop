@@ -40,7 +40,7 @@ def render():
         df[["ga_weeks", "los_days", "drg", "risk", "prolonged"]]
         .style.format({"risk": "{:.3f}"})
         .background_gradient(subset=["risk"], cmap="RdYlGn_r"),
-        use_container_width=True, height=360,
+        width="stretch", height=360,
     )
 
     st.subheader("Per-infant explanation")
@@ -60,7 +60,7 @@ def render():
             contrib[["feature", "value", "contribution"]]
             .style.format({"value": "{:.2f}", "contribution": "{:+.3f}"})
             .background_gradient(subset=["contribution"], cmap="RdBu_r"),
-            hide_index=True, use_container_width=True,
+            hide_index=True, width="stretch",
         )
     with right:
         try:

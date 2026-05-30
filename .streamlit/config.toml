@@ -1,0 +1,22 @@
+# Robocop theme — a warm, professional dark palette inspired by the Claude
+# Code aesthetic (near-black warm background, coral accent, clean type).
+[theme]
+base = "dark"
+primaryColor = "#d97757"            # Claude coral accent
+backgroundColor = "#1a1916"         # warm near-black canvas
+secondaryBackgroundColor = "#24221d" # cards / sidebar / inputs
+textColor = "#ece9e2"
+linkColor = "#e08a6b"
+codeBackgroundColor = "#100f0d"
+borderColor = "#3a372f"
+showWidgetBorder = true
+baseRadius = "0.6rem"
+font = "sans-serif"
+headingFont = "sans-serif"
+codeFont = "monospace"
+
+[server]
+runOnSave = true
+
+[client]
+toolbarMode = "minimal"

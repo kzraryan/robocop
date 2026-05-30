@@ -46,19 +46,19 @@ def render():
             "SELECT RAW_DIAGNOSIS_NAME AS diagnosis, COUNT(DISTINCT PATID) AS infants "
             "FROM mu_nicu.DIAGNOSIS GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
         ).fetchdf()
-        st.dataframe(dx, hide_index=True, use_container_width=True)
+        st.dataframe(dx, hide_index=True, width="stretch")
     with t2:
         rx = con.execute(
             "SELECT RAW_RX_MED_NAME AS medication, COUNT(DISTINCT PATID) AS infants "
             "FROM mu_nicu.PRESCRIBING GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
         ).fetchdf()
-        st.dataframe(rx, hide_index=True, use_container_width=True)
+        st.dataframe(rx, hide_index=True, width="stretch")
     with t3:
         pr = con.execute(
             "SELECT RAW_PROCEDURE_NAME AS procedure, COUNT(DISTINCT PATID) AS infants "
             "FROM mu_nicu.PROCEDURES GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
         ).fetchdf()
-        st.dataframe(pr, hide_index=True, use_container_width=True)
+        st.dataframe(pr, hide_index=True, width="stretch")
 
     with st.expander("Feature table (one row per infant)"):
-        st.dataframe(fb.features.round(2), use_container_width=True, height=400)
+        st.dataframe(fb.features.round(2), width="stretch", height=400)

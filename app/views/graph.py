@@ -63,4 +63,4 @@ def render():
                 if G.nodes[n]["kind"] == "diagnosis"]
         df = pd.DataFrame(sorted(rows, key=lambda x: -x[1]),
                           columns=["diagnosis", "degree_centrality"])
-        st.dataframe(df, hide_index=True, use_container_width=True, height=420)
+        st.dataframe(df, hide_index=True, width="stretch", height=420)

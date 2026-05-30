@@ -29,44 +29,80 @@ APP_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(APP_DIR))
 sys.path.insert(0, str(APP_DIR.parent / "src"))
 
-st.set_page_config(page_title="Robocop — NICU Intelligence", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Robocop — NICU Intelligence",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 import services  # noqa: E402
 from views import (  # noqa: E402
     extraction, graph, notes, overview, patient_timeline, query, rag, risk,
     similarity, system,
 )
-
-PAGES = {
-    "🏥 Cohort Overview": overview.render,
-    "📈 Patient Timeline": patient_timeline.render,
-    "🧬 Patient Similarity": similarity.render,
-    "📝 Note Search": notes.render,
-    "🔎 Ask the Data (SQL)": query.render,
-    "🕸️ Phenotype Graph": graph.render,
-    "⚠️ Risk Prediction": risk.render,
-    "💬 RAG Q&A": rag.render,
-    "🏷️ NLP Extraction": extraction.render,
-    "⚙️ System & Health": system.render,
-}
+from views._ui import inject_css, status_row  # noqa: E402
 
 
-def main():
-    st.sidebar.title("🤖 Robocop")
-    st.sidebar.caption("NICU Patient Similarity & Cohort Intelligence")
-    page = st.sidebar.radio("Page", list(PAGES.keys()))
-    st.sidebar.divider()
-
+def _sidebar_status() -> None:
+    """Live backend status, rendered below the navigation."""
     con = services.get_con()
     idx = services.get_index()
-    st.sidebar.write("**DuckDB:**", "✅" if con else "❌ (build_index.py)")
-    st.sidebar.write("**Notes index:**", f"✅ {idx.index.ntotal} chunks" if idx else "❌")
     models = services.ollama_models()
-    st.sidebar.write("**Ollama:**", f"✅ {len(models)} models" if models else "❌")
-    st.sidebar.caption(f"chat: `{services.default_chat()}`\n\nembed: `{services.default_embed()}`")
 
-    PAGES[page]()
+    st.sidebar.markdown("###### System status")
+    with st.sidebar:
+        status_row("DuckDB", con is not None,
+                   "connected" if con is not None else "missing")
+        status_row("Note index", idx is not None,
+                   f"{idx.index.ntotal:,} chunks" if idx is not None else "not built")
+        status_row("Ollama", bool(models),
+                   f"{len(models)} models" if models else "offline")
+
+    st.sidebar.divider()
+    st.sidebar.caption(
+        f"chat&nbsp;·&nbsp;`{services.default_chat()}`  \n"
+        f"embed&nbsp;·&nbsp;`{services.default_embed()}`",
+        unsafe_allow_html=True,
+    )
+
+
+def main() -> None:
+    inject_css()
+
+    nav = st.navigation({
+        "Explore": [
+            st.Page(overview.render, title="Cohort Overview",
+                    icon=":material/groups:", url_path="overview", default=True),
+            st.Page(patient_timeline.render, title="Patient Timeline",
+                    icon=":material/timeline:", url_path="timeline"),
+            st.Page(similarity.render, title="Patient Similarity",
+                    icon=":material/hub:", url_path="similarity"),
+        ],
+        "Notes & Language": [
+            st.Page(notes.render, title="Note Search",
+                    icon=":material/search:", url_path="notes"),
+            st.Page(rag.render, title="RAG Q&A",
+                    icon=":material/forum:", url_path="rag"),
+            st.Page(extraction.render, title="NLP Extraction",
+                    icon=":material/label:", url_path="extraction"),
+        ],
+        "Analytics": [
+            st.Page(query.render, title="Ask the Data",
+                    icon=":material/database:", url_path="ask"),
+            st.Page(graph.render, title="Phenotype Graph",
+                    icon=":material/share:", url_path="graph"),
+            st.Page(risk.render, title="Risk Prediction",
+                    icon=":material/warning:", url_path="risk"),
+        ],
+        "System": [
+            st.Page(system.render, title="System & Health",
+                    icon=":material/monitor_heart:", url_path="system"),
+        ],
+    })
+
+    _sidebar_status()
+    nav.run()
 
 
 if __name__ == "__main__":

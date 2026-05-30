@@ -64,7 +64,7 @@ def render():
         fig = px.scatter(df, x="date", y="provider_type", color="score",
                          hover_data=["patid", "noteid"], color_continuous_scale="YlOrRd")
         fig.update_layout(height=240, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     except Exception:  # noqa: BLE001
         st.line_chart(df.set_index("date")["score"])
 

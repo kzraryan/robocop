@@ -54,7 +54,7 @@ def render():
     df = pd.DataFrame(rows)
     st.dataframe(
         df.style.background_gradient(subset=["similarity"], cmap="Greens"),
-        hide_index=True, use_container_width=True,
+        hide_index=True, width="stretch",
     )
 
     st.subheader("Why these match")
@@ -88,6 +88,6 @@ def render():
                 fig.update_layout(height=320, showlegend=False,
                                   xaxis_title="Day of life",
                                   margin=dict(l=10, r=10, t=10, b=10))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             except Exception:  # noqa: BLE001
-                st.dataframe(tdf, hide_index=True, use_container_width=True)
+                st.dataframe(tdf, hide_index=True, width="stretch")

@@ -50,8 +50,8 @@ def render():
     # infant against its matches across day-of-life (not hidden in an expander).
     st.subheader("Cohort timeline — index infant vs. matches")
     st.caption(
-        "Each row is an infant; each point is a clinical note placed at its day "
-        "of life. The index infant is highlighted at the top."
+        "Each row is an infant; each point is a clinical event placed at its day "
+        "of life, colored by event type. The index infant (★) is at the top."
     )
     _cohort_timeline(con, patid, neighbors)
 
@@ -85,41 +85,55 @@ def render():
 
 
 def _cohort_timeline(con, patid, neighbors) -> None:
-    """Plot every infant's notes on a shared day-of-life axis, the index infant
-    on top and visually distinct from its matches. Shown as a primary chart."""
+    """Plot every infant's events on a shared day-of-life axis. Dots are colored
+    by **event type** (diagnosis, medication, lab, …); the index infant stays
+    distinguishable by its row label. Shown as a primary chart."""
     ids = [patid] + [n.patid for n in neighbors]
     rows = []
     for pid in ids:
         ev = timeline.patient_events(con, pid)
-        ev = ev[ev["category"] == "Note"]
-        role = "Index infant" if pid == patid else "Match"
+        ylabel = f"★ {pid} (index)" if pid == patid else pid
         for r in ev.itertuples(index=False):
-            rows.append({"patid": pid, "dol": r.dol, "label": r.label, "role": role})
+            rows.append({
+                "infant": ylabel,
+                "dol": r.dol,
+                "event": str(r.category),
+                "label": r.label,
+            })
 
     if not rows:
         st.info(
-            "No dated notes available for this cohort yet — build the note index "
+            "No dated events available for this cohort yet — build the data "
             "(`python scripts/build_index.py`) to populate this timeline."
         )
         return
 
     tdf = pd.DataFrame(rows)
-    # Order rows with the index infant at the top, matches by similarity below.
-    y_order = list(reversed(ids))
+    # Index infant on top; matches below in similarity order.
+    y_order = list(reversed([f"★ {patid} (index)"] + [n.patid for n in neighbors]))
+    # Stable, readable-on-light colors per event category.
+    color_map = {
+        "Diagnosis": "#c0392b", "Condition": "#8e44ad", "Medication": "#27ae60",
+        "Procedure": "#8c564b", "Ventilation": "#2471a3", "Feeding/GI": "#e67e22",
+        "Lab": "#1696a3", "Vital": "#9a9412", "Pain": "#d6608f", "Note": "#5d6d7e",
+    }
     try:
         import plotly.express as px
         fig = px.scatter(
-            tdf, x="dol", y="patid", color="role",
-            category_orders={"patid": y_order, "role": ["Index infant", "Match"]},
-            color_discrete_map={"Index infant": "#d97757", "Match": "#4d5a6b"},
+            tdf, x="dol", y="infant", color="event",
+            category_orders={
+                "infant": y_order,
+                "event": [c for c in color_map if c in set(tdf["event"])],
+            },
+            color_discrete_map=color_map,
             hover_data=["label"],
         )
-        fig.update_traces(marker=dict(size=12, opacity=0.85,
+        fig.update_traces(marker=dict(size=11, opacity=0.85,
                                       line=dict(width=0.5, color="#ffffff")))
         fig.update_layout(
             height=max(260, 48 * len(ids)),
             xaxis_title="Day of life", yaxis_title="",
-            legend_title="", legend=dict(orientation="h", y=1.04, x=0),
+            legend_title="Event", legend=dict(orientation="h", y=1.06, x=0),
             margin=dict(l=10, r=10, t=10, b=10),
             font=dict(color="#28261d", size=13),
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",

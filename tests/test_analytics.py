@@ -2,6 +2,7 @@
 (no Ollama needed): features, similarity, phenotype graph, risk, timeline, NER."""
 
 import duckdb
+import pandas as pd
 import pytest
 
 from robocop import features, ingest, nicu_vocab, phenotype, risk, similarity, synth, timeline
@@ -65,6 +66,37 @@ def test_timeline_multi_category(con):
     assert not ev.empty
     assert ev["dol"].min() >= 0
     assert ev["category"].nunique() >= 3
+
+
+def test_features_handle_duplicate_patids(con):
+    """Real ENCOUNTER/DEMOGRAPHIC tables carry many rows per PATID; building
+    features must not raise 'cannot reindex on an axis with duplicate labels'."""
+    demo = con.execute("SELECT * FROM mu_nicu.DEMOGRAPHIC").fetchdf()
+    enc = con.execute("SELECT * FROM mu_nicu.ENCOUNTER").fetchdf()
+    # Duplicate every demographic and encounter row to force repeated PATIDs.
+    dup_demo = pd.concat([demo, demo], ignore_index=True)
+    dup_enc = pd.concat([enc, enc], ignore_index=True)
+
+    d = duckdb.connect()
+    d.execute("CREATE SCHEMA mu_nicu")
+    d.execute("SET search_path = 'mu_nicu'")
+    for name in ("DEMOGRAPHIC", "ENCOUNTER", "DIAGNOSIS", "CONDITION",
+                 "LAB_RESULT_CM", "PRESCRIBING", "PROCEDURES", "VITAL",
+                 "OBS_CLIN_NICU_VENT", "OBS_CLIN_NICU_ENTERAL_GI",
+                 "OBS_CLIN_NICU_PAIN_SCORES", "NOTE"):
+        df = (dup_demo if name == "DEMOGRAPHIC" else
+              dup_enc if name == "ENCOUNTER" else
+              con.execute(f"SELECT * FROM mu_nicu.{name}").fetchdf())
+        d.register("t", df)
+        d.execute(f'CREATE TABLE mu_nicu."{name}" AS SELECT * FROM t')
+        d.unregister("t")
+
+    fb = features.build_features(d)
+    d.close()
+    # One row per infant despite duplicated source rows; DRG still populated.
+    assert fb.features.index.is_unique
+    assert len(fb.features) == len(demo["PATID"].unique())
+    assert fb.meta["drg"].notna().any()
 
 
 def test_nicu_ner_non_overlapping():

@@ -72,15 +72,20 @@ def build_features(con) -> FeatureBundle:
     vent = con.execute("SELECT * FROM mu_nicu.OBS_CLIN_NICU_VENT").fetchdf()
     notes = con.execute("SELECT * FROM mu_nicu.NOTE").fetchdf()
 
-    f = pd.DataFrame(index=demo["PATID"])
-    ga = _num(demo.set_index("PATID")["GESTATIONAL_AGE"])
+    # Real tables can carry >1 row per PATID (multiple encounters/records). Keep
+    # one demographic row per infant so the per-PATID index stays unique; a
+    # duplicate index would break the .reindex() alignments below.
+    demo1 = demo.drop_duplicates(subset="PATID", keep="first").set_index("PATID")
+
+    f = pd.DataFrame(index=demo1.index)
+    ga = _num(demo1["GESTATIONAL_AGE"])
     # GA is documented in days (e.g. 275); if the column is actually in weeks
     # (median well under 60), convert to days so ga_weeks stays consistent.
     if ga.notna().any() and ga.median(skipna=True) < 60:
         ga = ga * 7
     f["ga_days"] = ga
     f["ga_weeks"] = (f["ga_days"] / 7.0)
-    f["sex_male"] = (demo.set_index("PATID")["SEX"] == "M").astype(int)
+    f["sex_male"] = (demo1["SEX"] == "M").astype(int)
 
     # length of stay
     enc2 = enc.copy()
@@ -133,9 +138,12 @@ def build_features(con) -> FeatureBundle:
     # readable meta
     meta = pd.DataFrame(index=f.index)
     meta["ga_weeks"] = f["ga_weeks"].round(1)
-    meta["sex"] = demo.set_index("PATID")["SEX"]
+    meta["sex"] = demo1["SEX"].reindex(f.index)
     meta["los_days"] = f["los_days"].astype(int)
-    meta["drg"] = enc.set_index("PATID")["DRG"].reindex(f.index)
+    # One DRG per infant: real ENCOUNTER has many rows per PATID, so collapse to
+    # the first non-null DRG instead of set_index (which would duplicate labels).
+    drg = enc.dropna(subset=["DRG"]).groupby("PATID")["DRG"].first()
+    meta["drg"] = drg.reindex(f.index)
     meta["n_diagnoses"] = f["n_diagnoses"].astype(int)
 
     # diagnosis name sets (for graph / Jaccard)

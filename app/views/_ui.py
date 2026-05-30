@@ -20,7 +20,8 @@ BG = "#faf9f5"              # paper canvas (matches backgroundColor)
 CARD = "#f0eee6"            # cards / panels (matches secondaryBackgroundColor)
 BORDER = "#dcd8cc"          # hairline borders
 TEXT = "#28261d"            # warm near-black ink (matches textColor)
-MUTED = "#6b6757"           # muted label text, accessible on the paper canvas
+MUTED = "#5c5848"           # muted text — darkened to ~6.8:1 on the paper canvas
+                            # so captions/labels stay readable for older eyes
 
 
 _CSS = f"""
@@ -36,6 +37,19 @@ _CSS = f"""
 /* ---- typography --------------------------------------------------------- */
 html, body, [class*="css"] {{ font-feature-settings: "ss01","cv01"; }}
 h1, h2, h3 {{ letter-spacing: -0.01em; font-weight: 650; }}
+
+/* ---- readability: secondary / caption text -----------------------------
+   Streamlit's default faded text is too light on a paper canvas for older
+   providers. Force captions, help text, and widget labels to a readable tone. */
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p,
+[data-testid="stCaptionContainer"] div,
+small, .stMarkdown small {{
+    color: {MUTED} !important; opacity: 1 !important;
+}}
+[data-testid="stWidgetLabel"] label, [data-testid="stWidgetLabel"] p {{
+    color: {TEXT} !important; font-weight: 550;
+}}
 
 /* ---- branded page header ------------------------------------------------ */
 .rc-header {{

@@ -42,7 +42,19 @@ def render():
     neighbors = eng.most_similar(patid, k=k, alpha=alpha)
     conf = eng.confidence(neighbors)
 
-    st.metric("Match confidence", f"{conf:.0%}")
+    m1, m2 = st.columns([1, 3])
+    m1.metric("Match confidence", f"{conf:.0%}")
+    m2.metric("Matched infants", len(neighbors))
+
+    # Cohort note timeline — a top-level visualization comparing the index
+    # infant against its matches across day-of-life (not hidden in an expander).
+    st.subheader("Cohort timeline — index infant vs. matches")
+    st.caption(
+        "Each row is an infant; each point is a clinical note placed at its day "
+        "of life. The index infant is highlighted at the top."
+    )
+    _cohort_timeline(con, patid, neighbors)
+
     st.subheader("Most similar infants")
     rows = []
     for n in neighbors:
@@ -71,23 +83,49 @@ def render():
             st.write(f"**Top shared factors:** {why}")
             st.caption(f"structured {n.struct_score:.3f} · notes {n.note_score:.3f}")
 
-    with st.expander("Cohort timeline of the matched infants (notes)"):
-        ids = [patid] + [n.patid for n in neighbors]
-        rows = []
-        for pid in ids:
-            ev = timeline.patient_events(con, pid)
-            ev = ev[ev["category"] == "Note"]
-            for r in ev.itertuples(index=False):
-                rows.append({"patid": pid, "dol": r.dol, "label": r.label})
-        if rows:
-            tdf = pd.DataFrame(rows)
-            try:
-                import plotly.express as px
-                fig = px.scatter(tdf, x="dol", y="patid", color="patid",
-                                 hover_data=["label"])
-                fig.update_layout(height=320, showlegend=False,
-                                  xaxis_title="Day of life",
-                                  margin=dict(l=10, r=10, t=10, b=10))
-                st.plotly_chart(fig, width="stretch")
-            except Exception:  # noqa: BLE001
-                st.dataframe(tdf, hide_index=True, width="stretch")
+
+def _cohort_timeline(con, patid, neighbors) -> None:
+    """Plot every infant's notes on a shared day-of-life axis, the index infant
+    on top and visually distinct from its matches. Shown as a primary chart."""
+    ids = [patid] + [n.patid for n in neighbors]
+    rows = []
+    for pid in ids:
+        ev = timeline.patient_events(con, pid)
+        ev = ev[ev["category"] == "Note"]
+        role = "Index infant" if pid == patid else "Match"
+        for r in ev.itertuples(index=False):
+            rows.append({"patid": pid, "dol": r.dol, "label": r.label, "role": role})
+
+    if not rows:
+        st.info(
+            "No dated notes available for this cohort yet — build the note index "
+            "(`python scripts/build_index.py`) to populate this timeline."
+        )
+        return
+
+    tdf = pd.DataFrame(rows)
+    # Order rows with the index infant at the top, matches by similarity below.
+    y_order = list(reversed(ids))
+    try:
+        import plotly.express as px
+        fig = px.scatter(
+            tdf, x="dol", y="patid", color="role",
+            category_orders={"patid": y_order, "role": ["Index infant", "Match"]},
+            color_discrete_map={"Index infant": "#d97757", "Match": "#4d5a6b"},
+            hover_data=["label"],
+        )
+        fig.update_traces(marker=dict(size=12, opacity=0.85,
+                                      line=dict(width=0.5, color="#ffffff")))
+        fig.update_layout(
+            height=max(260, 48 * len(ids)),
+            xaxis_title="Day of life", yaxis_title="",
+            legend_title="", legend=dict(orientation="h", y=1.04, x=0),
+            margin=dict(l=10, r=10, t=10, b=10),
+            font=dict(color="#28261d", size=13),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+        fig.update_xaxes(gridcolor="#e6e2d8", zeroline=False)
+        fig.update_yaxes(gridcolor="#e6e2d8")
+        st.plotly_chart(fig, width="stretch")
+    except Exception:  # noqa: BLE001
+        st.dataframe(tdf, hide_index=True, width="stretch")

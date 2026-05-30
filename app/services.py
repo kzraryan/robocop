@@ -40,7 +40,18 @@ def get_features():
     con = get_con()
     if con is None:
         return None
-    return features.build_features(con)
+    try:
+        return features.build_features(con)
+    except Exception:  # noqa: BLE001
+        # Surface the real file:line + running build so a failure is diagnosable
+        # (and tells us at a glance whether the app is on synced code).
+        import traceback
+        from robocop.version import version_label
+        st.error(
+            f"Feature build failed — running {version_label()}.\n\n"
+            "```\n" + traceback.format_exc() + "\n```"
+        )
+        return None
 
 
 @st.cache_resource(show_spinner="Building similarity engine…")

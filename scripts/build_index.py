@@ -7,16 +7,18 @@ By default it uses the **real** MU NICU drop at ``config.REAL_DIR``
 hackathon server).
 
 Usage:
-    python scripts/build_index.py                 # real data (default)
     python scripts/build_index.py --synthetic     # synthetic demo data
     python scripts/build_index.py --skip-embed    # data + DuckDB only (no Ollama)
     python scripts/build_index.py --max-notes 2000  # cap notes embedded (random rows)
 
     # Cohort mode: embed the *full* note history of patients who each have
     # enough notes -> coherent longitudinal data for timelines / similarity.
-    python scripts/build_index.py --cohort-patients 100 --min-notes 50
+    python scripts/build_index.py --cohort-patients 10 --min-notes 50
+    python scripts/build_index.py --cohort-patients 10 --min-notes 50 --dry-run
 
-The embedding step needs the local Ollama server (config.EMBED_MODEL).
+To bound real-data embedding volume you must pick one of --cohort-patients,
+--max-notes, or --all-notes; otherwise the build refuses to embed the full
+(very large) corpus. The embedding step needs Ollama (config.EMBED_MODEL).
 """
 
 from __future__ import annotations
@@ -42,11 +44,18 @@ def main() -> int:
     ap.add_argument("--max-notes", type=int, default=None,
                     help="Cap how many notes are embedded, sampled as random rows.")
     ap.add_argument("--cohort-patients", type=int, default=None,
-                    help="Embed the full note history of this many patients "
+                    help="Embed the note history of this many patients "
                          "(each with >= --min-notes notes). Overrides --max-notes.")
     ap.add_argument("--min-notes", type=int, default=50,
                     help="Min notes a patient must have to join the cohort "
                          "(used with --cohort-patients).")
+    ap.add_argument("--per-patient-cap", type=int, default=None,
+                    help="Hard cap on notes embedded per cohort patient "
+                         "(earliest notes kept). Bounds total volume.")
+    ap.add_argument("--all-notes", action="store_true",
+                    help="Explicitly embed the ENTIRE corpus (can be very large).")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="Select the cohort and print counts, but do not embed.")
     args = ap.parse_args()
 
     config.ensure_dirs()
@@ -69,22 +78,50 @@ def main() -> int:
         print("2/2  Skipping embeddings (--skip-embed).")
         return 0
 
-    print(f"2/2  Embedding notes with '{config.EMBED_MODEL}' and building FAISS ...")
-    from robocop import notes_index  # local import so --skip-embed avoids faiss cost
+    # Guard: on real data, refuse to embed the entire corpus unless the scope is
+    # made explicit. This prevents a mistyped/omitted flag from silently kicking
+    # off a full ~600k-note embedding run.
+    scope_given = bool(args.cohort_patients or args.max_notes or args.all_notes)
+    if use_real and not scope_given:
+        print(
+            "     REFUSING to embed the full real corpus (could be hundreds of\n"
+            "     thousands of notes). Pick a scope:\n"
+            "       --cohort-patients 10 --min-notes 50   (full history of 10 patients)\n"
+            "       --max-notes 2000                       (random sample)\n"
+            "       --all-notes                            (really embed everything)\n"
+            "     or --skip-embed to stop here."
+        )
+        return 2
+
     con = ingest.connect(db)
     try:
         if args.cohort_patients:
             notes = _select_cohort_notes(
-                con, n_patients=args.cohort_patients, min_notes=args.min_notes
+                con, n_patients=args.cohort_patients, min_notes=args.min_notes,
+                per_patient_cap=args.per_patient_cap,
             )
-        else:
-            sql = "SELECT * FROM mu_nicu.NOTE WHERE NOTE_TEXT IS NOT NULL"
-            if args.max_notes:
-                sql += f" USING SAMPLE {int(args.max_notes)} ROWS"
-            notes = con.execute(sql).fetchdf()
+        elif args.max_notes:
+            notes = con.execute(
+                "SELECT * FROM mu_nicu.NOTE WHERE NOTE_TEXT IS NOT NULL "
+                f"USING SAMPLE {int(args.max_notes)} ROWS"
+            ).fetchdf()
+            print(f"     random sample: {len(notes)} notes (--max-notes {args.max_notes})")
+        else:  # --all-notes, or synthetic (small) data
+            notes = con.execute(
+                "SELECT * FROM mu_nicu.NOTE WHERE NOTE_TEXT IS NOT NULL"
+            ).fetchdf()
+            print(f"     full corpus: {len(notes)} notes")
+
         if notes.empty:
             print("     no notes to embed; skipping index.")
             return 0
+        if args.dry_run:
+            print(f"     [dry-run] would embed {len(notes)} notes; no embeddings built.")
+            return 0
+
+        print(f"2/2  Embedding {len(notes)} notes with '{config.EMBED_MODEL}' "
+              "and building FAISS ...")
+        from robocop import notes_index  # local import so --skip-embed avoids faiss cost
         idx = notes_index.NotesIndex.build(notes)
     finally:
         con.close()
@@ -93,12 +130,15 @@ def main() -> int:
     return 0
 
 
-def _select_cohort_notes(con, n_patients: int, min_notes: int):
+def _select_cohort_notes(con, n_patients: int, min_notes: int,
+                         per_patient_cap: int | None = None):
     """Pick ``n_patients`` patients that each have >= ``min_notes`` notes and
-    return *all* of their notes, so each patient's history is complete.
+    return their notes, so each patient's history is (near-)complete.
 
-    Patients are ranked by note count (richest histories first) for a
-    deterministic, signal-dense demo cohort.
+    Patients with the *fewest* qualifying notes are taken first: asking for "10
+    patients with > 50 notes" yields ~50-note infants, not the few-thousand-note
+    outliers, keeping the embedding job small and on-target. ``per_patient_cap``
+    optionally trims each history to its earliest N notes as a hard volume bound.
     """
     chosen = con.execute(
         """
@@ -109,7 +149,7 @@ def _select_cohort_notes(con, n_patients: int, min_notes: int):
             GROUP BY PATID
             HAVING count(*) >= ?
         )
-        SELECT PATID, n FROM counts ORDER BY n DESC, PATID LIMIT ?
+        SELECT PATID, n FROM counts ORDER BY n ASC, PATID LIMIT ?
         """,
         [int(min_notes), int(n_patients)],
     ).fetchdf()
@@ -117,20 +157,33 @@ def _select_cohort_notes(con, n_patients: int, min_notes: int):
     if chosen.empty:
         print(f"     no patients have >= {min_notes} notes; nothing to embed.")
         return chosen.iloc[0:0]
+    if len(chosen) < n_patients:
+        print(f"     only {len(chosen)} patients have >= {min_notes} notes "
+              f"(asked for {n_patients}).")
 
     patids = chosen["PATID"].tolist()
-    total_notes = int(chosen["n"].sum())
-    print(
-        f"     cohort: {len(patids)} patients with >= {min_notes} notes "
-        f"({total_notes} notes total; "
-        f"{chosen['n'].min()}-{chosen['n'].max()} per patient)"
-    )
     placeholders = ", ".join("?" for _ in patids)
     notes = con.execute(
         f"SELECT * FROM mu_nicu.NOTE "
         f"WHERE NOTE_TEXT IS NOT NULL AND PATID IN ({placeholders})",
         patids,
     ).fetchdf()
+
+    if per_patient_cap:
+        # Keep each patient's earliest notes (stable, chronological) up to the cap.
+        sort_col = "NOTE_DATE" if "NOTE_DATE" in notes.columns else None
+        if sort_col:
+            notes = notes.sort_values(["PATID", sort_col], kind="stable")
+        notes = notes.groupby("PATID", sort=False).head(int(per_patient_cap))
+
+    per = notes.groupby("PATID", sort=False).size()
+    print(
+        f"     cohort: {len(patids)} patients with >= {min_notes} notes "
+        f"-> embedding {len(notes)} notes "
+        f"({int(per.min())}-{int(per.max())} per patient"
+        + (f", capped at {per_patient_cap}" if per_patient_cap else "")
+        + ")"
+    )
     return notes
 
 

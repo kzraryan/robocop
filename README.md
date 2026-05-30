@@ -98,9 +98,17 @@ python scripts/build_index.py --cohort-patients 100 --min-notes 50
 streamlit run app/streamlit_app.py
 ```
 
-`--cohort-patients N --min-notes M` keeps the N patients who each have at least
-M notes (ranked by note count) and embeds **all** of their notes — a lifetime
-record per infant — instead of `--max-notes`' scattered random rows.
+`--cohort-patients N --min-notes M` keeps N patients who each have at least M
+notes and embeds their full history — a longitudinal record per infant, not
+`--max-notes`' scattered random rows. The **fewest**-qualifying patients are
+taken first, so `--cohort-patients 10 --min-notes 50` gives ~50-note infants
+rather than the few-thousand-note outliers, keeping the job small. Add
+`--per-patient-cap K` to hard-bound each history to its earliest K notes, and
+`--dry-run` to print the selected counts without embedding.
+
+On real data the build **refuses to embed the whole corpus** unless you pass an
+explicit scope (`--cohort-patients`, `--max-notes`, or `--all-notes`), so an
+omitted flag can't silently launch a 600k-note run.
 
 If `inspect_data.py` shows a misdetected note column, set the matching override
 (e.g. `ROBOCOP_NOTE_PROVIDER_COL`, `ROBOCOP_NOTE_DATE_COL`) and rebuild.

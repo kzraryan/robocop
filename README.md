@@ -90,9 +90,17 @@ loaded as text so null sentinels (`/n`, `//N`, `\N`, …) survive; numeric casts
 ```bash
 python scripts/inspect_data.py                # confirm files/headers + detected NOTE mapping (no PHI)
 python scripts/build_index.py --skip-embed    # real data -> DuckDB (no Ollama)
-python scripts/build_index.py --max-notes 2000  # + embeddings/FAISS (caps note volume)
+python scripts/build_index.py --max-notes 2000  # + embeddings/FAISS (random note cap)
+
+# Preferred for a demo: full note history of a focused cohort, so timelines and
+# the similarity note-blend have continuity (richest histories chosen first).
+python scripts/build_index.py --cohort-patients 100 --min-notes 50
 streamlit run app/streamlit_app.py
 ```
+
+`--cohort-patients N --min-notes M` keeps the N patients who each have at least
+M notes (ranked by note count) and embeds **all** of their notes — a lifetime
+record per infant — instead of `--max-notes`' scattered random rows.
 
 If `inspect_data.py` shows a misdetected note column, set the matching override
 (e.g. `ROBOCOP_NOTE_PROVIDER_COL`, `ROBOCOP_NOTE_DATE_COL`) and rebuild.

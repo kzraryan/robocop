@@ -22,7 +22,7 @@ from robocop import config, ingest, synth  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--patients", type=int, default=150)
+    ap.add_argument("--patients", type=int, default=200)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--skip-embed", action="store_true",
                     help="Skip the FAISS/embedding step (no Ollama needed).")

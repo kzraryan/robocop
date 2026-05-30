@@ -162,6 +162,26 @@ class NotesIndex:
         return hits
 
 
+    # --- patient note-embedding centroids (for the similarity engine) -----
+    def patient_centroids(self) -> tuple[list[str], np.ndarray]:
+        """Average each patient's chunk vectors -> (patids, normalized matrix).
+
+        Vectors are reconstructed from the FAISS index, so no re-embedding."""
+        n = self.index.ntotal
+        vecs = self.index.reconstruct_n(0, n)  # (n, dim), already unit-norm at build
+        pat = self.meta["PATID"].to_numpy()
+        patids = sorted(set(pat.tolist()))
+        dim = vecs.shape[1]
+        mat = np.zeros((len(patids), dim), dtype=np.float32)
+        for i, p in enumerate(patids):
+            rows = vecs[pat == p]
+            if len(rows):
+                c = rows.mean(axis=0)
+                norm = np.linalg.norm(c)
+                mat[i] = c / norm if norm else c
+        return patids, mat
+
+
 def build_from_duckdb(con, **kwargs) -> NotesIndex:
     notes = con.execute("SELECT * FROM mu_nicu.NOTE").fetchdf()
     return NotesIndex.build(notes, **kwargs)

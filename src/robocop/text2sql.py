@@ -102,9 +102,10 @@ Rules:
 - Output ONLY a single read-only SQL SELECT query. No prose, no explanation.
 - Use ONLY the tables and columns from the provided schema. Reference tables by
   their bare name (the search_path is already set).
-- Honor the per-column NOTE hints. In particular: columns may contain the null
-  sentinels '/n', '//n' or '//N' (text), so cast/guard before numeric math, e.g.
-  TRY_CAST(RESULT_NUM AS DOUBLE) and WHERE RESULT_NUM NOT IN ('/n','//n','//N').
+- Honor the per-column NOTE hints. In particular: numeric columns may contain the
+  null sentinels '/n', '//n', '//N', '/N', '\\N' or other stray text, so never
+  compare them raw. Use TRY_CAST(col AS DOUBLE) (which yields NULL on bad values)
+  and add WHERE TRY_CAST(col AS DOUBLE) IS NOT NULL before any numeric math.
 - Dates are stored as text; use strptime()/TRY_CAST when comparing.
 - Prefer standardized codes (LAB_LOINC, DX, CONDITION) for deterministic matching
   and RAW_* text columns (ILIKE '%...%') for free-text physician prompts.

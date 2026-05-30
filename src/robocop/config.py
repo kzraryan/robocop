@@ -17,6 +17,33 @@ def _path(env: str, default: Path) -> Path:
 
 DATA_DIR: Path = _path("ROBOCOP_DATA_DIR", ROOT / "data")
 RAW_DIR: Path = _path("ROBOCOP_RAW_DIR", DATA_DIR / "raw")
+
+# --- Real MU NICU data on the hackathon server ----------------------------
+# Root of the real, de-identified MU NICU drop. Overridable for other mounts.
+REAL_DIR: Path = _path("ROBOCOP_REAL_DIR", Path("/media/data/caidf_data/MU/NICU"))
+STRUCTURED_SUBDIR: str = os.environ.get("ROBOCOP_STRUCTURED_SUBDIR", "STRUCTURED_DATA_V1")
+NOTES_SUBDIR: str = os.environ.get("ROBOCOP_NOTES_SUBDIR", "2024-11-20")
+# Metadata files (at REAL_DIR root) used to recover per-note PATID/date/provider.
+NOTE_METADATA_FILES: tuple[str, ...] = (
+    "NICU_NOTE_METADATA.csv", "NICU_EVENTS.csv", "NICU_PROVIDERS.csv",
+)
+# Optional hard overrides for note-column auto-detection (set when inspect_data.py
+# reveals the real headers). Empty string => auto-detect.
+NOTE_COL_OVERRIDES: dict[str, str] = {
+    "noteid": os.environ.get("ROBOCOP_NOTE_ID_COL", ""),
+    "text": os.environ.get("ROBOCOP_NOTE_TEXT_COL", ""),
+    "patid": os.environ.get("ROBOCOP_NOTE_PATID_COL", ""),
+    "date": os.environ.get("ROBOCOP_NOTE_DATE_COL", ""),
+    "provider": os.environ.get("ROBOCOP_NOTE_PROVIDER_COL", ""),
+    "encounter": os.environ.get("ROBOCOP_NOTE_ENC_COL", ""),
+}
+
+# Null sentinels seen in numeric/text columns across the real data. Includes the
+# documented '/n','//n','//N','/N' plus the classic '\N' and stray markers.
+NULL_SENTINELS: frozenset[str] = frozenset(
+    {"/n", "//n", "//N", "/N", "\\N", "\\n", "\\\\N", "N", "NA", "N/A",
+     "NULL", "null", "None", "NaN", "nan", "", "."}
+)
 DUCKDB_PATH: Path = _path("ROBOCOP_DUCKDB", DATA_DIR / "mu.duckdb")
 FAISS_DIR: Path = _path("ROBOCOP_FAISS_DIR", DATA_DIR / "faiss")
 CACHE_DIR: Path = _path("ROBOCOP_CACHE_DIR", DATA_DIR / "cache")

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from . import config
+
 # Key diagnosis ICD-10 codes -> readable flag name (drives multi-hot features).
 DX_FLAGS = {
     "P22.0": "dx_rds",
@@ -41,7 +43,7 @@ LAB_AGGS = [
     ("Glucose", "lab_glucose_mean", "mean"),
 ]
 
-NULLS = {"/n", "//n", "//N", "/N", "", None}
+NULLS = set(config.NULL_SENTINELS) | {None}
 
 
 @dataclass
@@ -53,7 +55,10 @@ class FeatureBundle:
 
 
 def _num(series: pd.Series) -> pd.Series:
-    s = series.astype(str).where(~series.astype(str).isin(NULLS))
+    """Coerce to numeric, treating documented null sentinels and any stray
+    non-numeric strings (e.g. ``\\N``) as missing."""
+    s = series.astype(str).str.strip()
+    s = s.where(~s.isin(NULLS))
     return pd.to_numeric(s, errors="coerce")
 
 
@@ -68,7 +73,12 @@ def build_features(con) -> FeatureBundle:
     notes = con.execute("SELECT * FROM mu_nicu.NOTE").fetchdf()
 
     f = pd.DataFrame(index=demo["PATID"])
-    f["ga_days"] = _num(demo.set_index("PATID")["GESTATIONAL_AGE"])
+    ga = _num(demo.set_index("PATID")["GESTATIONAL_AGE"])
+    # GA is documented in days (e.g. 275); if the column is actually in weeks
+    # (median well under 60), convert to days so ga_weeks stays consistent.
+    if ga.notna().any() and ga.median(skipna=True) < 60:
+        ga = ga * 7
+    f["ga_days"] = ga
     f["ga_weeks"] = (f["ga_days"] / 7.0)
     f["sex_male"] = (demo.set_index("PATID")["SEX"] == "M").astype(int)
 

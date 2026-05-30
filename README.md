@@ -66,11 +66,42 @@ ollama pull mxbai-embed-large
 pip install -r requirements.txt
 ```
 
-## Build data + index, then run
+## Data: real MU NICU drop (default) or synthetic
+
+By default the pipeline uses the **real** server drop at
+`/media/data/caidf_data/MU/NICU` (override with `ROBOCOP_REAL_DIR`):
+
+```
+MU/NICU/
+  STRUCTURED_DATA_V1/   # ENCOUNTER, CONDITION, DEMOGRAPHIC, DIAGONSIS(sic), LAB_RESULT_CM,
+                        # PRESCRIBING, PROCEDURES, VITAL, OBS_CLIN_NICU_{ENTERAL_GI,PAIN_SCORES,VENT}
+  2024-11-20/           # note text shards: NOTE_ID + NOTE (or DEID_NOTE_RELEASE)
+  NICU_NOTE_METADATA.csv  NICU_EVENTS.csv  NICU_PROVIDERS.csv   # note PATID/date/provider links
+```
+
+The structured filenames match the column doc (the `DIAGONSIS` misspelling is
+handled). `mu_nicu.NOTE` is **assembled** by joining the note text to the
+metadata/provider sidecars; the linking columns are auto-detected. Everything is
+loaded as text so null sentinels (`/n`, `//N`, `\N`, …) survive; numeric casts use
+`TRY_CAST`.
+
+**On the hackathon server:**
 
 ```bash
-python scripts/build_index.py                 # synth -> DuckDB -> FAISS embeddings
-python scripts/build_index.py --skip-embed    # data + DuckDB only (no Ollama)
+python scripts/inspect_data.py                # confirm files/headers + detected NOTE mapping (no PHI)
+python scripts/build_index.py --skip-embed    # real data -> DuckDB (no Ollama)
+python scripts/build_index.py --max-notes 2000  # + embeddings/FAISS (caps note volume)
+streamlit run app/streamlit_app.py
+```
+
+If `inspect_data.py` shows a misdetected note column, set the matching override
+(e.g. `ROBOCOP_NOTE_PROVIDER_COL`, `ROBOCOP_NOTE_DATE_COL`) and rebuild.
+
+**Synthetic demo (off-server / no real data):**
+
+```bash
+python scripts/build_index.py --synthetic --skip-embed   # generate + DuckDB
+python scripts/build_index.py --synthetic                # + embeddings
 streamlit run app/streamlit_app.py
 ```
 
@@ -82,6 +113,8 @@ note-embedding blend of Patient Similarity need Ollama (embeddings + chat).
 
 | Var | Default | Purpose |
 |-----|---------|---------|
+| `ROBOCOP_REAL_DIR` | `/media/data/caidf_data/MU/NICU` | real MU NICU data root |
+| `ROBOCOP_NOTE_*_COL` | (auto-detect) | override a note link column (`PATID`/`DATE`/`PROVIDER`/`TEXT`/`ID`/`ENC`) |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama server |
 | `ROBOCOP_CODER_MODEL` | `qwen3-coder:30b` | text-to-SQL / chat / RAG |
 | `ROBOCOP_EMBED_MODEL` | `mxbai-embed-large` | note embeddings |

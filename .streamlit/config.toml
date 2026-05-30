@@ -1,14 +1,14 @@
-# Robocop theme — a warm, professional dark palette inspired by the Claude
-# Code aesthetic (near-black warm background, coral accent, clean type).
+# Robocop theme — a warm, professional light palette inspired by the Claude
+# Code aesthetic (cream/paper background, coral accent, clean type).
 [theme]
-base = "dark"
+base = "light"
 primaryColor = "#d97757"            # Claude coral accent
-backgroundColor = "#1a1916"         # warm near-black canvas
-secondaryBackgroundColor = "#24221d" # cards / sidebar / inputs
-textColor = "#ece9e2"
-linkColor = "#e08a6b"
-codeBackgroundColor = "#100f0d"
-borderColor = "#3a372f"
+backgroundColor = "#faf9f5"         # warm paper canvas
+secondaryBackgroundColor = "#f0eee6" # cards / sidebar / inputs
+textColor = "#28261d"               # warm near-black ink
+linkColor = "#c15f3c"
+codeBackgroundColor = "#f0eee6"
+borderColor = "#dcd8cc"
 showWidgetBorder = true
 baseRadius = "0.6rem"
 font = "sans-serif"

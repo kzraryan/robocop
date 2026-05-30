@@ -62,7 +62,8 @@ def render():
     try:
         import plotly.express as px
         fig = px.scatter(df, x="date", y="provider_type", color="score",
-                         hover_data=["patid", "noteid"], color_continuous_scale="YlOrRd")
+                         hover_data=["patid", "noteid"], color_continuous_scale="YlOrRd",
+                         render_mode="svg")  # avoid WebGL (scattergl)
         fig.update_layout(height=240, margin=dict(l=10, r=10, t=10, b=10))
         st.plotly_chart(fig, width="stretch")
     except Exception:  # noqa: BLE001

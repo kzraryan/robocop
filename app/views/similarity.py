@@ -121,6 +121,7 @@ def _cohort_timeline(con, patid, neighbors) -> None:
         import plotly.express as px
         fig = px.scatter(
             tdf, x="dol", y="infant", color="event",
+            render_mode="svg",  # avoid WebGL (scattergl); some browsers lack it
             category_orders={
                 "infant": y_order,
                 "event": [c for c in color_map if c in set(tdf["event"])],

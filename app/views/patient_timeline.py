@@ -37,6 +37,7 @@ def render():
         fig = px.scatter(
             events, x="dol", y="category", color="category",
             hover_data=["label", "detail", "date"],
+            render_mode="svg",  # avoid WebGL (scattergl); some browsers lack it
         )
         fig.update_traces(marker=dict(size=11, opacity=0.75))
         fig.update_layout(height=380, showlegend=False,
